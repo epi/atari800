@@ -1,0 +1,5 @@
+APPNAME = atari800
+
+type = app
+profile = wearable-2.3.1
+

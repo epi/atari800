@@ -30,6 +30,8 @@
 #include <string.h>
 #ifdef ANDROID
 #include <android/log.h>
+#elif defined(TIZEN)
+#include <dlog.h>
 #endif
 
 #include "log.h"
@@ -38,6 +40,8 @@
 #  define PRINT(a) ControlManagerMessagePrint(a)
 #elif defined(ANDROID)
 #  define PRINT(a) __android_log_write(ANDROID_LOG_DEBUG, "A800Core", a)
+#elif defined(TIZEN)
+#  define PRINT(a) dlog_print(DLOG_INFO, "ATARI800", "%s", a)
 #else
 #  define PRINT(a) printf("%s", a)
 #endif

@@ -29,7 +29,7 @@ AC_CONFIG_HEADER(config.h)
 dnl Set a8_target...
 
 case "$target" in
-    default | falcon | ps2 | rpi | android | windx | x11 | x11-shm | x11-motif | x11-xview | x11-xview-shm)
+    default | falcon | ps2 | rpi | android | tizen | windx | x11 | x11-shm | x11-motif | x11-xview | x11-xview-shm)
         a8_target="$target"
         ;;
     shm | motif | xview | xview-shm)
@@ -50,6 +50,7 @@ case "$target" in
         echo "    falcon           (Atari Falcon: set --host=m68k-atari-mint)"
         echo "    ps2              (Sony PlayStation 2)"
         echo "    rpi              (Raspberry Pi: set --host=arm-linux)"
+        echo "    tizen            (Tizen: set --host=arm-linux-gnueabi)"
         echo "    windx            (Windows with DirectX only)"
         echo "    x11              (Standard X11)"
         echo "    (x11-)motif      (Motif on X11)"
@@ -98,6 +99,9 @@ case $host_os in
         ;;
     linux | linux-gnu)
         a8_host="linux"
+        ;;
+    linux-gnueabi)
+        a8_host="tizen"
         ;;
     mint)
         a8_host="falcon"
@@ -159,7 +163,26 @@ if [[ "$a8_target" = "falcon" ]]; then
 	CFLAGS="-m68020-60 -O3 -fomit-frame-pointer -Wall"
 	LDFLAGS="-m68020-60"
 fi
-
+if [[ "$a8_target" = "tizen" ]]; then
+	[[ -z "$TIZEN_STUDIO" ]] && TIZEN_STUDIO="$HOME/tizen-studio"
+	SYSROOT="$TIZEN_STUDIO/platforms/tizen-2.3.1/wearable/rootstraps/wearable-2.3.1-device.core" 
+	CC="$TIZEN_STUDIO/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
+	CPP="$TIZEN_STUDIO/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-cpp"
+	CPPFLAGS="$CPPFLAGS --sysroot=$SYSROOT"
+	LDFLAGS="$LDFLAGS --sysroot=$SYSROOT"
+	CFLAGS="$CFLAGS -fPIE -pthread -I$SYSROOT/usr/include/appfw -I$SYSROOT/usr/include/ecore-1"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/eina-1 -I$SYSROOT/usr/include/eina-1/eina"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/evas-1 -I$SYSROOT/usr/include/elementary-1"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/eet-1 -I$SYSROOT/usr/include/edje-1"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/e_dbus-1 -I$SYSROOT/usr/include/efreet-1"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/ethumb-1 -I$SYSROOT/usr/include/media"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/dbus-1.0 -I$SYSROOT/usr/lib/dbus-1.0/include"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/cairo"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/efl-extension"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/system"
+	CFLAGS="$CFLAGS -I$SYSROOT/usr/include/dlog"
+	LDFLAGS="$LDFLAGS --sysroot=$SYSROOT -pie -levas -lefl-extension -lecore -lelementary -lcapi-appfw-application -lcapi-system-system-settings -lcapi-media-audio-io -lcapi-system-device -lcapi-system-info -lcairo -ldlog -pthread -lrt "
+fi
 
 dnl Check for programs...
 
@@ -332,7 +355,13 @@ dnl BeOS has a real issue with redundant-decls
         A8_NEED_LIB(bcm_host)
         OBJS="atari_rpi.o gles2/video.o sdl/main.o sdl/input.o"
         ;;
-	android)
+    tizen)
+        dnl AC_DEFINE(SUPPORTS_PLATFORM_SLEEP,1,[Platform-specific sleep function.])
+        dnl AC_DEFINE(SUPPORTS_PLATFORM_TIME,1,[Platform-specific time function.])
+        AC_DEFINE(TIZEN,1,[Target: Tizen wearable devices.])
+        OBJS="tizen/main.o"
+        ;;
+    android)
         AC_DEFINE(ANDROID,1,[Target: Android])
         AC_DEFINE(SUPPORTS_PLATFORM_PALETTEUPDATE,1,[Update the Palette if it changed.])
         AC_DEFINE(DIRTYRECT,1,[Define to use dirty screen partial repaints.])
@@ -844,6 +873,13 @@ if [[ "$a8_target" != "ps2" -a "$a8_target" != "android" ]]; then
                 AC_MSG_ERROR([--with-sound=falcon was given, but host system is not Falcon!])
             fi
         fi
+        if [[ "$with_sound" = check -o "$with_sound" = yes -o "$with_sound" = tizen ]]; then
+            if [[ "$a8_host" = tizen ]]; then
+                with_sound=tizen
+            elif [[ "$with_sound" = tizen ]]; then
+                AC_MSG_ERROR([--with-sound=tizen was given, but host system is not Tizen!])
+            fi
+        fi
         if [[ "$with_sound" = check -o "$with_sound" = yes -o "$with_sound" = dossb ]]; then
             if [[ "$a8_host" = dos ]]; then
                 with_sound=dossb
@@ -897,6 +933,11 @@ if [[ "$a8_target" != "ps2" -a "$a8_target" != "android" ]]; then
             WANT_SOUND_THIN_API=yes
             WANT_SOUND_CALLBACK=yes
             OBJS="$OBJS dos/sound_dos.o dos/dos_sb.o"
+            ;;
+        tizen)
+            WANT_SOUND_THIN_API=yes
+            WANT_SOUND_CALLBACK=yes
+            OBJS="$OBJS tizen/sound.o"
             ;;
         no)
             ;;
